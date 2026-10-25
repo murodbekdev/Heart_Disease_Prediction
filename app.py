@@ -366,40 +366,10 @@ if not st.session_state.loaded:
 # 4. PATHS
 
 APP_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = APP_DIR.parent
-
-STAGE12_DIR = (
-    PROJECT_ROOT
-    / "results"
-    / "protected_final_test"
-    / "stage12"
-)
-
-MODEL_DIR = (
-    PROJECT_ROOT
-    / "models"
-    / "final"
-)
-
-PREDICTIONS_PATH = (
-    STAGE12_DIR
-    / "stage12_final_test_predictions.csv"
-)
-
-METADATA_PATH = (
-    STAGE12_DIR
-    / "stage12_metadata.json"
-)
-
-MODEL_PATH = (
-    MODEL_DIR
-    / "final_catboost_pipeline.joblib"
-)
-
-CALIBRATOR_PATH = (
-    MODEL_DIR
-    / "final_isotonic_calibrator.joblib"
-)
+METADATA_PATH = APP_DIR / "stage12_metadata.json"
+MODEL_PATH = APP_DIR / "final_catboost_pipeline.joblib"
+CALIBRATOR_PATH = APP_DIR / "final_isotonic_calibrator.joblib"
+SCHEMA_PATH = APP_DIR / "input_schema.json"
 
 
 # 5. FROZEN FEATURE SET
@@ -506,16 +476,13 @@ def load_artifacts():
 
 
 @st.cache_data
-def load_reference_data():
-
-    return pd.read_csv(
-        PREDICTIONS_PATH,
-        usecols=FEATURES,
-    )
+def load_input_schema():
+    with open(SCHEMA_PATH, encoding="utf-8") as file:
+        return json.load(file)
 
 
 model, calibrator, threshold = load_artifacts()
-reference_data = load_reference_data()
+input_schema = load_input_schema()
 
 
 # 7. Small translation helpers
@@ -590,89 +557,28 @@ def format_input_value(
 
 # 8. Input helpers
 
-def numeric_input(
-    feature,
-):
-
-    values = pd.to_numeric(
-        reference_data[
-            feature
-        ],
-        errors="coerce",
-    ).dropna()
-
+def numeric_input(feature):
+    info = input_schema[feature]
     return st.number_input(
-        feature_label(
-            feature
-        ),
-        min_value=float(
-            values.min()
-        ),
-        max_value=float(
-            values.max()
-        ),
-        value=float(
-            values.median()
-        ),
+        feature_label(feature),
+        min_value=float(info["min"]),
+        max_value=float(info["max"]),
+        value=float(info["default"]),
         step=0.1,
         key=f"num_{feature}",
     )
 
 
-def category_options(
-    feature,
-    preferred_order=None,
-):
-
-    observed = (
-        reference_data[
-            feature
-        ]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
-
+def category_options(feature, preferred_order=None):
+    observed = input_schema[feature]["options"]
     if preferred_order is None:
-        return sorted(
-            observed
-        )
-
-    return [
-        value
-        for value in preferred_order
-        if value in observed
-    ]
+        return observed
+    return [value for value in preferred_order if value in observed]
 
 
-def category_default_index(
-    feature,
-    options,
-):
-
-    mode = (
-        reference_data[
-            feature
-        ]
-        .dropna()
-        .astype(str)
-        .mode()
-    )
-
-    if mode.empty:
-        return 0
-
-    default_value = mode.iloc[
-        0
-    ]
-
-    if default_value in options:
-        return options.index(
-            default_value
-        )
-
-    return 0
+def category_default_index(feature, options):
+    default_value = input_schema[feature]["default"]
+    return options.index(default_value) if default_value in options else 0
 
 
 def category_input(
@@ -1282,7 +1188,7 @@ def make_shap_waterfall(
         0.35
     )
 
-    # Reference lines: legend placed above the axes to prevent overlap.
+    # Compact reference-line legend, avoiding overlapping annotations.
     from matplotlib.lines import Line2D
 
     legend_items = [
@@ -1293,16 +1199,15 @@ def make_shap_waterfall(
         Line2D([0], [0], color="#111827", linestyle="-", linewidth=1.5,
                label=f"Final output: {model_margin:.3f}"),
     ]
-
     ax.legend(
         handles=legend_items,
         loc="lower center",
         bbox_to_anchor=(0.5, 1.02),
         ncol=3,
-        fontsize=8,
+        fontsize=8.5,
         frameon=False,
         columnspacing=1.0,
-        handlelength=1.7,
+        handlelength=1.6,
     )
 
     fig.subplots_adjust(
@@ -1432,7 +1337,8 @@ st.markdown(
         font-size: 14px;
         margin-top: 8px;
         margin-bottom: 12px;
-    }    div[data-testid="stFormSubmitButton"] button {
+    }
+    div[data-testid="stFormSubmitButton"] button {
         background-color: #FF4B4B;
         color: white;
         border: none;
@@ -1753,11 +1659,8 @@ if submitted:
         FEATURES
     ]
 
-    raw_score = float(
-        model.predict_proba(
-            input_data
-        )[:, 1][0]
-    )
+    transformed_input = model.named_steps["preprocessor"].transform(input_data)
+    raw_score = float(model.named_steps["model"].predict_proba(transformed_input)[0, 1])
 
     prediction = int(
         raw_score
@@ -2081,3 +1984,4 @@ st.caption(
         "footer"
     )
 )
+

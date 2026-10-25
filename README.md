@@ -1,5 +1,5 @@
 # Heart Disease Prediction — Thesis Demo done by GAFFOROV MURODJON MUKHIDDIN UGLI
-# Advisor : Prof. KyooJae Shin 
+# Advisor : Prof. Kyoo Jae Shin 
 # Committee Member : Prof. Hee Tae Chung 
 # Committee Member : Bum Mo Ryu
 

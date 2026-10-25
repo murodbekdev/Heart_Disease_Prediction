@@ -1189,46 +1189,49 @@ def make_shap_waterfall(
     )
 
     # Small legend inside unused upper-right space.
-    ax.text(
-        0.18,
-        1.015,
-        f"Dashed gray: baseline = {expected_value:.3f} | ",
-        transform=ax.transAxes,
-        ha="center",
-        va="bottom",
-        fontsize=8.2,
-        color="#9ca3af",
-        fontweight="semibold",
-    )
+    
 
-    ax.text(
-        0.52,
-        1.015,
-        f"   Dashed orange: decision threshold = {threshold_margin:.3f} | ",
-        transform=ax.transAxes,
-        ha="center",
-        va="bottom",
-        fontsize=8.2,
-        color="#f59e0b",
-        fontweight="semibold",
-    )
+    from matplotlib.lines import Line2D
 
-    ax.text(
-        0.84,
-        1.015,
-        f"  Black: final output = {model_margin:.3f}",
-        transform=ax.transAxes,
-        ha="center",
-        va="bottom",
-        fontsize=8.2,
-        color="#111827",
-        fontweight="semibold",
-    )
+    legend_items = [
+        Line2D(
+            [0], [0],
+            color="#9ca3af",
+            linestyle="--",
+            linewidth=1.5,
+            label=f"Baseline: {expected_value:.3f}"
+        ),
+        Line2D(
+            [0], [0],
+            color="#f59e0b",
+            linestyle="--",
+            linewidth=1.5,
+            label=f"Threshold: {threshold_margin:.3f}"
+        ),
+        Line2D(
+            [0], [0],
+            color="#111827",
+            linestyle="-",
+            linewidth=1.5,
+            label=f"Final output: {model_margin:.3f}"
+        ),
+]
+
+ax.legend(
+    handles=legend_items,
+    loc="lower center",
+    bbox_to_anchor=(0.5, 1.02),
+    ncol=3,
+    fontsize=9,
+    frameon=False,
+    columnspacing=1.5,
+    handlelength=2.0,
+)
 
     fig.subplots_adjust(
         left=0.37,
         right=0.97,
-        top=0.81,
+        top=0.78,
         bottom=0.15,
     )
 
